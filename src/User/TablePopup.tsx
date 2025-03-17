@@ -20,11 +20,17 @@ const App: React.FC = () => {
   const [deleteRecord, setDeleteRecord] = useState<DataType | null>(null);
 
   const handleAdd = (values: any) => {
+    const age = Number(values.age);
+    if (!Number.isInteger(age) || age < 0) {
+      message.error("Tuổi phải là số nguyên không âm!");
+      return;
+    }
+
     const newData: DataType = {
       key: Date.now(),
       firstName: values.firstName,
       lastName: values.lastName,
-      age: Number(values.age),
+      age,
       address: values.address,
       tags: values.tags ? values.tags.split(",").map((tag: string) => tag.trim()) : [],
     };
@@ -42,6 +48,12 @@ const App: React.FC = () => {
   const handleSave = async () => {
     try {
       const values = await form.validateFields();
+      const age = Number(values.age);
+      if (!Number.isInteger(age) || age < 0) {
+        message.error("Tuổi phải là số nguyên không âm!");
+        return;
+      }
+
       setData((prevData) =>
         prevData.map((item) => (item.key === editingKey ? { ...item, ...values } : item))
       );
@@ -69,8 +81,11 @@ const App: React.FC = () => {
         <Form.Item name="lastName" rules={[{ required: true, message: "Nhập Last Name!" }]}>
           <Input placeholder="Last Name" />
         </Form.Item>
-        <Form.Item name="age" rules={[{ required: true, message: "Nhập Age!" }]}>
-          <Input type="number" placeholder="Age" />
+        <Form.Item
+          name="age"
+          rules={[{ required: true, message: "Nhập Age!" }]}
+        >
+          <Input type="number" placeholder="Age" min={0} step={1} />
         </Form.Item>
         <Form.Item name="address" rules={[{ required: true, message: "Nhập Address!" }]}>
           <Input placeholder="Address" />
@@ -94,7 +109,7 @@ const App: React.FC = () => {
               <Input placeholder="Last Name" />
             </Form.Item>
             <Form.Item name="age">
-              <Input type="number" placeholder="Age" />
+              <Input type="number" placeholder="Age" min={0} step={1} />
             </Form.Item>
             <Form.Item name="address">
               <Input placeholder="Address" />
@@ -146,7 +161,6 @@ const App: React.FC = () => {
           )}
         />
       </Table>
-
 
       {deleteRecord && (
         <ConfirmDelete
