@@ -1,79 +1,74 @@
-import React, { useState } from "react";
-import { Table, Tag, message, Button, Space, Input, Form } from "antd";
-import ConfirmDelete from "./ConfirmDelete";
+import React from "react";
+import { Table, Tag, message, Button, Space, Input, Form, Modal } from "antd";
+import useUserStore from "../store/user.store";
+import { User } from "../models/user.model";
 
 const { Column, ColumnGroup } = Table;
 
-interface DataType {
-  key: React.Key;
-  firstName: string;
-  lastName: string;
-  age: number;
-  address: string;
-  tags: string[];
-}
-
-const App: React.FC = () => {
-  const [data, setData] = useState<DataType[]>([]);
+const TablePopup: React.FC = () => {
+  const { 
+    users, 
+    addUser, 
+    editUser, 
+    deleteUser, 
+    editingUser, 
+    deletingUser, 
+    setEditingUser, 
+    setDeletingUser 
+  } = useUserStore();
+  
   const [form] = Form.useForm();
-  const [editingKey, setEditingKey] = useState<React.Key | null>(null);
-  const [deleteRecord, setDeleteRecord] = useState<DataType | null>(null);
 
-  const handleAdd = (values: any) => {
-    const age = Number(values.age);
-    if (!Number.isInteger(age) || age < 0) {
-      message.error("Tuổi phải là số nguyên không âm!");
-      return;
+
+  const handleAdd = (values: Omit<User, "key">) => {
+    if (typeof values.tags === "string") {
+      values.tags = values.tags.split(",").map(tag => tag.trim());
     }
-
-    const newData: DataType = {
-      key: Date.now(),
-      firstName: values.firstName,
-      lastName: values.lastName,
-      age,
-      address: values.address,
-      tags: values.tags ? values.tags.split(",").map((tag: string) => tag.trim()) : [],
-    };
-
-    setData([...data, newData]);
+    addUser(values);
     form.resetFields();
     message.success("Thêm thành công!");
   };
 
-  const handleEdit = (record: DataType) => {
-    setEditingKey(record.key);
+
+  const handleEdit = (record: User) => {
+    setEditingUser(record);
     form.setFieldsValue(record);
   };
 
+ 
   const handleSave = async () => {
     try {
       const values = await form.validateFields();
-      const age = Number(values.age);
-      if (!Number.isInteger(age) || age < 0) {
-        message.error("Tuổi phải là số nguyên không âm!");
-        return;
+      if (typeof values.tags === "string") {
+        values.tags = values.tags.split(",").map(tag => tag.trim());
       }
-
-      setData((prevData) =>
-        prevData.map((item) => (item.key === editingKey ? { ...item, ...values } : item))
-      );
-      setEditingKey(null);
-      message.success("Cập nhật thành công!");
+      if (editingUser) {
+        editUser(editingUser.key, values);
+        message.success("Cập nhật thành công!");
+      }
+      setEditingUser(null);
     } catch (error) {
       console.log("Validate Failed:", error);
     }
   };
 
+
+  const handleDelete = (record: User) => {
+    setDeletingUser(record);
+  };
+
+
   const handleConfirmDelete = () => {
-    if (deleteRecord) {
-      setData((prevData) => prevData.filter((item) => item.key !== deleteRecord.key));
-      message.success(`Đã xóa ${deleteRecord.firstName} ${deleteRecord.lastName}!`);
+    if (deletingUser) {
+      deleteUser(deletingUser.key);
+      message.success(`Đã xóa ${deletingUser.firstName} ${deletingUser.lastName}!`);
     }
-    setDeleteRecord(null);
+    setDeletingUser(null);
   };
 
   return (
     <div className="p-4">
+      {/* 🛠 Form Thêm User */}
       <Form form={form} layout="inline" onFinish={handleAdd}>
         <Form.Item name="firstName" rules={[{ required: true, message: "Nhập First Name!" }]}>
           <Input placeholder="First Name" />
@@ -81,53 +76,22 @@ const App: React.FC = () => {
         <Form.Item name="lastName" rules={[{ required: true, message: "Nhập Last Name!" }]}>
           <Input placeholder="Last Name" />
         </Form.Item>
-        <Form.Item
-          name="age"
-          rules={[{ required: true, message: "Nhập Age!" }]}
-        >
+        <Form.Item name="age" rules={[{ required: true, message: "Nhập Age!" }]}>
           <Input type="number" placeholder="Age" min={0} step={1} />
         </Form.Item>
         <Form.Item name="address" rules={[{ required: true, message: "Nhập Address!" }]}>
           <Input placeholder="Address" />
         </Form.Item>
         <Form.Item name="tags">
-          <Input placeholder="Tags" />
+          <Input placeholder="Tags (cách nhau bằng dấu phẩy)" />
         </Form.Item>
         <Button type="primary" htmlType="submit">
           Thêm
         </Button>
       </Form>
 
-      {editingKey !== null && (
-        <div className="mt-4">
-          <h3>Chỉnh sửa</h3>
-          <Form form={form} layout="inline">
-            <Form.Item name="firstName">
-              <Input placeholder="First Name" />
-            </Form.Item>
-            <Form.Item name="lastName">
-              <Input placeholder="Last Name" />
-            </Form.Item>
-            <Form.Item name="age">
-              <Input type="number" placeholder="Age" min={0} step={1} />
-            </Form.Item>
-            <Form.Item name="address">
-              <Input placeholder="Address" />
-            </Form.Item>
-            <Form.Item name="tags">
-              <Input placeholder="Tags (cách nhau bằng dấu phẩy)" />
-            </Form.Item>
-            <Button type="primary" onClick={handleSave}>
-              Lưu
-            </Button>
-            <Button onClick={() => setEditingKey(null)} className="ml-2">
-              Hủy
-            </Button>
-          </Form>
-        </div>
-      )}
 
-      <Table<DataType> dataSource={data} rowKey="key" className="mt-4">
+      <Table<User> dataSource={users} rowKey="key" className="mt-4">
         <ColumnGroup title="Name">
           <Column title="First Name" dataIndex="firstName" key="firstName" />
           <Column title="Last Name" dataIndex="lastName" key="lastName" />
@@ -140,21 +104,22 @@ const App: React.FC = () => {
           key="tags"
           render={(tags: string[]) => (
             <>
-              {tags.map((tag) => (
-                <Tag color={tag.length > 5 ? "geekblue" : "green"} key={tag}>
-                  {tag.toUpperCase()}
-                </Tag>
-              ))}
+              {Array.isArray(tags) &&
+                tags.map((tag) => (
+                  <Tag color={tag.length > 5 ? "geekblue" : "green"} key={tag}>
+                    {tag.toUpperCase()}
+                  </Tag>
+                ))}
             </>
           )}
         />
         <Column
           title="Action"
           key="action"
-          render={(_: any, record: DataType) => (
+          render={(_: any, record: User) => (
             <Space size="middle">
               <Button onClick={() => handleEdit(record)}>Edit</Button>
-              <Button danger onClick={() => setDeleteRecord(record)}>
+              <Button danger onClick={() => handleDelete(record)}>
                 Delete
               </Button>
             </Space>
@@ -162,16 +127,52 @@ const App: React.FC = () => {
         />
       </Table>
 
-      {deleteRecord && (
-        <ConfirmDelete
-          visible={!!deleteRecord}
-          onConfirm={handleConfirmDelete}
-          onCancel={() => setDeleteRecord(null)}
-          name={`${deleteRecord.firstName} ${deleteRecord.lastName}`}
-        />
+
+      {editingUser && (
+        <Modal
+          title="Chỉnh sửa người dùng"
+          open={!!editingUser}
+          onOk={handleSave}
+          onCancel={() => setEditingUser(null)}
+          okText="Lưu"
+          cancelText="Hủy"
+        >
+          <Form form={form} layout="vertical">
+            <Form.Item name="firstName" label="First Name">
+              <Input />
+            </Form.Item>
+            <Form.Item name="lastName" label="Last Name">
+              <Input />
+            </Form.Item>
+            <Form.Item name="age" label="Age">
+              <Input type="number" min={0} step={1} />
+            </Form.Item>
+            <Form.Item name="address" label="Address">
+              <Input />
+            </Form.Item>
+            <Form.Item name="tags" label="Tags">
+              <Input placeholder="Tags (cách nhau bằng dấu phẩy)" />
+            </Form.Item>
+          </Form>
+        </Modal>
+      )}
+
+
+      {deletingUser && (
+        <Modal
+          title="Xác nhận xóa"
+          open={!!deletingUser}
+          onOk={handleConfirmDelete}
+          onCancel={() => setDeletingUser(null)}
+          okText="Xóa"
+          cancelText="Hủy"
+          okType="danger"
+        >
+          <p>Bạn có chắc chắn muốn xóa {deletingUser.firstName} {deletingUser.lastName} không?</p>
+        </Modal>
       )}
     </div>
   );
 };
 
-export default App;
+export default TablePopup;
