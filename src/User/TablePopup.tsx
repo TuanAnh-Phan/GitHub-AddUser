@@ -17,7 +17,7 @@ const TablePopup: React.FC = () => {
     setDeletingUser 
   } = useUserStore();
   
-  const [form] = Form.useForm();
+  const [form] = Form.useForm(); 
 
 
   const handleAdd = (values: Omit<User, "key">) => {
@@ -68,7 +68,7 @@ const TablePopup: React.FC = () => {
 
   return (
     <div className="p-4">
-      {/* 🛠 Form Thêm User */}
+     
       <Form form={form} layout="inline" onFinish={handleAdd}>
         <Form.Item name="firstName" rules={[{ required: true, message: "Nhập First Name!" }]}>
           <Input placeholder="First Name" />
